@@ -1,0 +1,5 @@
+biomes:
+grid size: 4
+map:
+outer wall: BARRIER
+inner wall: BEDROCK
