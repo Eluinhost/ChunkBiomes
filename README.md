@@ -86,5 +86,4 @@ Walls are then added to the copied chunk as required.
 # Known Problems
 
 - Some biomes seem to generate with a variation (JUNGLE appears to make JungleEdge biome). As far as I can tell this is Bukkit/Spigot problem and I cannot find a cause currently.
-- Spawnsers/chests (anything in world gen with extra data) will be broken (pig spawners/empty). Not sure on the best way to fix this currently.
 - World spawn may be a little bit off, after you fall into the void make sure to set the spawn point somewhere sensible
