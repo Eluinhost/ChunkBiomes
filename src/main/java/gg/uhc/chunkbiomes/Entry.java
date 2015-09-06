@@ -31,6 +31,7 @@ public class Entry extends JavaPlugin implements Listener {
 
     protected GridBiomeChunkSelector biomeSelector;
     protected List<ChunkDataTransformer> transformers;
+    protected MissingBlockStatePopulator populator;
 
     @Override
     public void onEnable() {
@@ -78,6 +79,8 @@ public class Entry extends JavaPlugin implements Listener {
                     new OuterWallTransformer((grid.length << 4) - 1, OuterWallTransformer.Axis.X, outerWall),
                     new OuterWallTransformer((grid.length << 4) - 1, OuterWallTransformer.Axis.Z, outerWall)
             );
+
+            populator = new MissingBlockStatePopulator();
         } catch (InvalidConfigurationException e) {
             e.printStackTrace();
             setEnabled(false);
@@ -88,6 +91,7 @@ public class Entry extends JavaPlugin implements Listener {
     public ChunkGenerator getDefaultWorldGenerator(String name, String id) {
         return new CopyChunkGenerator(
                 this,
+                populator,
                 name,
                 biomeSelector,
                 worldsRequired,

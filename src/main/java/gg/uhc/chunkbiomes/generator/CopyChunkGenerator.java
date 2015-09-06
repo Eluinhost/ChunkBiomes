@@ -1,18 +1,17 @@
 package gg.uhc.chunkbiomes.generator;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
+import com.google.common.collect.*;
 import gg.uhc.chunkbiomes.ChunkCoord;
 import gg.uhc.chunkbiomes.selector.BiomeChunkSelector;
 import gg.uhc.chunkbiomes.transformer.ChunkDataTransformer;
 import org.bukkit.*;
 import org.bukkit.block.Biome;
+import org.bukkit.block.BlockState;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.world.WorldLoadEvent;
+import org.bukkit.generator.BlockPopulator;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.plugin.Plugin;
 
@@ -54,13 +53,19 @@ public class CopyChunkGenerator extends ChunkGenerator implements Listener {
     protected final GeneratorSettings settings;
 
     /**
+     * Handles spawners/chests e.t.c. by setting their extra data after main world generation
+     */
+    protected final MissingBlockStatePopulator populator;
+
+    /**
      * Used to transform copied chunks
      */
     protected final List<ChunkDataTransformer> modifier;
 
-    public CopyChunkGenerator(Plugin plugin, String worldName, BiomeChunkSelector selector, Set<Biome> requiredBiomes, GeneratorSettings settings, List<ChunkDataTransformer> modifier) {
+    public CopyChunkGenerator(Plugin plugin, MissingBlockStatePopulator populator, String worldName, BiomeChunkSelector selector, Set<Biome> requiredBiomes, GeneratorSettings settings, List<ChunkDataTransformer> modifier) {
         this.worldName = worldName;
         this.plugin = plugin;
+        this.populator = populator;
         this.biomeSelector = selector;
         this.settings = settings;
         this.modifier = modifier;
@@ -165,8 +170,14 @@ public class CopyChunkGenerator extends ChunkGenerator implements Listener {
                 biome.setBiome(x, z, biomeWorld.getBiome(x, z));
 
                 for (y = 0; y < max; y++) {
-                    // copy individual blocks over
-                    data.setBlock(x, y, z, toCopy.getBlock(x, y, z).getState().getData());
+                    // grab the state
+                    BlockState state = toCopy.getBlock(x, y, z).getState();
+
+                    // let the populator store the block ready for the extra data to be applied after generation
+                    populator.saveIfRequired(coord, x, y, z, state);
+
+                    // set id/data value
+                    data.setBlock(x, y, z, state.getData());
                 }
             }
         }
@@ -178,5 +189,9 @@ public class CopyChunkGenerator extends ChunkGenerator implements Listener {
         toCopy.unload(false, false);
 
         return data;
+    }
+
+    public List<BlockPopulator> getDefaultPopulators(World world) {
+        return Lists.newArrayList((BlockPopulator) populator);
     }
 }
