@@ -44,6 +44,9 @@ public class GeneratorSettings {
         try {
             int id = (int) biomeIdField.get(biomeToBiomeBaseMethod.invoke(null, biome));
 
+            // minecraft is silly and the IDs are offset by 2 when >8 becase HELL and SKY are unselectable
+            if (id >= 8) id -= 2;
+
             return "{\"fixedBiome\": " + id + "," + defaults;
         } catch (IllegalAccessException | InvocationTargetException e) {
             e.printStackTrace();
