@@ -89,3 +89,5 @@ Walls are then added to the copied chunk as required.
 # Known Problems
 
 - World spawn may be a little bit off, after you fall into the void make sure to set the spawn point somewhere sensible
+- World generation is very slow due to multiple chunks being generated/copied at once
+- Some world generation is still odd, all in populators (trees are cut off in places)
