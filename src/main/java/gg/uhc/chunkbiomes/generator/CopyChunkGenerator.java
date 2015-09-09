@@ -10,6 +10,7 @@ import org.bukkit.block.Biome;
 import org.bukkit.block.BlockState;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.world.ChunkPopulateEvent;
 import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.generator.BlockPopulator;
 import org.bukkit.generator.ChunkGenerator;
@@ -27,7 +28,8 @@ public class CopyChunkGenerator extends ChunkGenerator implements Listener {
     /**
      * Stores generation worlds to copy from
      */
-    protected final Map<Biome, World> biomeWords = Maps.newEnumMap(Biome.class);
+    protected final BiMap<Biome, UUID> biomeWords = HashBiMap.create();
+    protected final BiMap<UUID, Biome> worldBiomes = biomeWords.inverse();
 
     /**
      * Stores chunk that were generated empty due to the biome worlds not being created yet.
@@ -35,11 +37,11 @@ public class CopyChunkGenerator extends ChunkGenerator implements Listener {
      */
     protected final Multimap<Biome, ChunkCoord> incorrectChunks = HashMultimap.create();
 
-    // handles biomes per chunk
+    // selects biomes based on coordinates
     protected final BiomeChunkSelector biomeSelector;
 
     // the world associated with this generator
-    protected final String worldName;
+    protected UUID worldId = null;
 
     // set of required biomes the generator requires, 1 world is created per biome
     protected final Set<Biome> requiredBiomes;
@@ -63,7 +65,6 @@ public class CopyChunkGenerator extends ChunkGenerator implements Listener {
     protected final List<ChunkDataTransformer> modifier;
 
     public CopyChunkGenerator(Plugin plugin, MissingBlockStatePopulator populator, String worldName, BiomeChunkSelector selector, Set<Biome> requiredBiomes, GeneratorSettings settings, List<ChunkDataTransformer> modifier) {
-        this.worldName = worldName;
         this.plugin = plugin;
         this.populator = populator;
         this.biomeSelector = selector;
@@ -76,11 +77,36 @@ public class CopyChunkGenerator extends ChunkGenerator implements Listener {
     }
 
     @EventHandler
+    public void on(ChunkPopulateEvent event) {
+        Biome biome = worldBiomes.get(event.getWorld().getUID());
+
+        // not a biome world
+        if (biome == null) return;
+
+        Chunk chunk = event.getChunk();
+        final ChunkCoord source = ChunkCoord.from(chunk);
+
+        final World mainWorld = Bukkit.getWorld(worldId);
+        Preconditions.checkNotNull(mainWorld, "Unable to fetch main world to regenerate chunks");
+
+        // not a chunk for this biome so no need to regenerate for it
+        if (biome != biomeSelector.getBiomeFor(mainWorld, source)) return;
+
+        // regenerate chunks since a populator has completed, run on next tick to avoid errors
+        Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
+            @Override
+            public void run() {
+                mainWorld.regenerateChunk(source.getX(), source.getZ());
+            }
+        });
+    }
+
+    @EventHandler
     public void on(WorldLoadEvent event) {
         final World world = event.getWorld();
 
         // if it's our main world generate each of the biome worlds
-        if (!world.getName().equals(worldName)) return;
+        if (!world.getUID().equals(worldId)) return;
 
         // run on next tick to avoid internal exceptions in world handler
         Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
@@ -115,12 +141,12 @@ public class CopyChunkGenerator extends ChunkGenerator implements Listener {
         Preconditions.checkState(!biomeWords.containsKey(biome), "Biome world is already loaded!");
 
         // add the newly loaded world to the map for the generator to use
-        biomeWords.put(biome, biomeWorld);
+        biomeWords.put(biome, biomeWorld.getUID());
 
         // fetch and remove all of the incorrect loaded chunks
         Collection<ChunkCoord> chunks = incorrectChunks.removeAll(biome);
 
-        World mainWorld = Bukkit.getWorld(worldName);
+        World mainWorld = Bukkit.getWorld(worldId);
         Preconditions.checkNotNull(mainWorld, "Unable to fetch main world to regenerate chunks");
 
         // regenerate each of the chunks that were incorrect now we have the world to copy from
@@ -131,10 +157,12 @@ public class CopyChunkGenerator extends ChunkGenerator implements Listener {
 
     @Override
     public ChunkData generateChunkData(World world, Random random, int chunkX, int chunkZ, BiomeGrid biome) {
+        if (worldId == null) worldId = world.getUID();
+
         ChunkData data = createChunkData(world);
         ChunkCoord coord  = new ChunkCoord(chunkX, chunkZ);
 
-        Biome chunkBiome = biomeSelector.getBiomeFor(world, random, coord);
+        Biome chunkBiome = biomeSelector.getBiomeFor(world, coord);
 
         // if we need to generate an AIR chunk
         if (chunkBiome == null) {
@@ -144,10 +172,10 @@ public class CopyChunkGenerator extends ChunkGenerator implements Listener {
         }
 
         // fetch world to copy from
-        World biomeWorld = biomeWords.get(chunkBiome);
+        UUID biomeWorldUID = biomeWords.get(chunkBiome);
 
         // we're waiting for the biome world to load
-        if (null == biomeWorld) {
+        if (null == biomeWorldUID) {
             // set entire chunk to AIR
             // temp solution whilst worlds are not loaded
             // chunk is regenerated later when their world is loaded
@@ -156,10 +184,11 @@ public class CopyChunkGenerator extends ChunkGenerator implements Listener {
             return data;
         }
 
-        // get the chunk at the same coordinate in the biome world
-        Chunk toCopy = biomeWorld.getChunkAt(chunkX, chunkZ);
-        // load the chunk and generate it if we need to
-        toCopy.load(true);
+        World biomeWorld = Bukkit.getWorld(biomeWorldUID);
+        Preconditions.checkNotNull(biomeWorld, "Unable to load biome world in generation");
+
+        // load the chunk and surrounding chunks to ensure population happens if needed
+        Chunk toCopy = loadChunkAndSurrounding(biomeWorld, chunkX, chunkZ);
 
         // copy the chunk to our generater
         int max = world.getMaxHeight();
@@ -186,9 +215,19 @@ public class CopyChunkGenerator extends ChunkGenerator implements Listener {
             transformer.apply(world, biomeWorld, data, random, chunkX, chunkZ, biome);
         }
 
-        toCopy.unload(false, false);
-
         return data;
+    }
+
+    protected Chunk loadChunkAndSurrounding(World world, int chunkX, int chunkZ) {
+        world.getChunkAt(chunkX - 1, chunkZ).load(true);
+        world.getChunkAt(chunkX + 1, chunkZ).load(true);
+        world.getChunkAt(chunkX, chunkZ - 1).load(true);
+        world.getChunkAt(chunkX, chunkZ + 1).load(true);
+
+        Chunk load = world.getChunkAt(chunkX, chunkZ);
+        load.load(true);
+
+        return load;
     }
 
     public List<BlockPopulator> getDefaultPopulators(World world) {

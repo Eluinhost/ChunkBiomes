@@ -6,7 +6,6 @@ import org.bukkit.World;
 import org.bukkit.block.Biome;
 
 import java.util.Map;
-import java.util.Random;
 
 
 public class GridBiomeChunkSelector implements BiomeChunkSelector {
@@ -41,7 +40,7 @@ public class GridBiomeChunkSelector implements BiomeChunkSelector {
     }
 
     @Override
-    public Biome getBiomeFor(World world, Random random, ChunkCoord coord) {
+    public Biome getBiomeFor(World world, ChunkCoord coord) {
         if (!biomeMap.containsKey(coord)) return fill;
 
         return biomeMap.get(coord);
