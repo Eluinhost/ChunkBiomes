@@ -2,6 +2,8 @@ package gg.uhc.chunkbiomes;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.common.io.Files;
+import com.google.common.io.Resources;
 import gg.uhc.chunkbiomes.configuration.BiomeLayoutReader;
 import gg.uhc.chunkbiomes.configuration.BiomeMapReader;
 import gg.uhc.chunkbiomes.configuration.IntegerReader;
@@ -19,6 +21,9 @@ import org.bukkit.event.Listener;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +40,13 @@ public class Entry extends JavaPlugin implements Listener {
 
     @Override
     public void onEnable() {
+        // save the default if none exists already
+        if(!copyDefaultConfig()) {
+            // something went wrong with config writing
+            setEnabled(false);
+            return;
+        }
+
         this.settings = new GeneratorSettings();
 
         FileConfiguration configuration = getConfig();
@@ -98,5 +110,37 @@ public class Entry extends JavaPlugin implements Listener {
                 settings,
                 transformers
         );
+    }
+
+    /**
+     * @return true if already exists/wrote to file, false if writing to file failed
+     */
+    protected boolean copyDefaultConfig() {
+        File dataFolder = getDataFolder();
+
+        // make data folder if it isn't there
+        if (!dataFolder.exists() && !dataFolder.mkdir()) {
+            // data folder creation failed
+            return false;
+        }
+
+        File configFile = new File(getDataFolder(), "config.yml");
+
+        // config file already exists
+        if (configFile.exists()) return true;
+
+        // write the defaults
+        URL defaultConfig = Resources.getResource(this.getClass(), "/default.yml");
+        try {
+            // write /default.yml to the config.yml file
+            Files.write(Resources.toByteArray(defaultConfig), configFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+            // something failed during writing
+            return false;
+        }
+
+        // config wrote successfully
+        return true;
     }
 }

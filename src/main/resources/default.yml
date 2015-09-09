@@ -1,0 +1,14 @@
+biomes:
+  M: MESA
+  D: DESERT
+  T: TAIGA
+  J: JUNGLE
+grid size: 4
+map:
+- MMMMM
+- MDDDM
+- MTTTM
+- MJJJM
+- MMMMM
+outer wall: BARRIER
+inner wall: BEDROCK
