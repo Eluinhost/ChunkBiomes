@@ -1,6 +1,7 @@
 package gg.uhc.chunkbiomes;
 
 import com.google.common.base.Objects;
+import org.bukkit.Chunk;
 
 /**
  * Simple X,Z storage to signify a chunk coordinate
@@ -17,6 +18,10 @@ public class ChunkCoord {
         this.chunkZ = chunkZ;
 
         hash = Objects.hashCode(chunkX, chunkZ);
+    }
+
+    public static ChunkCoord from(Chunk chunk) {
+        return new ChunkCoord(chunk.getX(), chunk.getZ());
     }
 
     public int getX() {
