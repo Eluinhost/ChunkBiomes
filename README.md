@@ -16,6 +16,9 @@ Example images using the sample configuration listed below:
 ![Surface](images/surface.png)
 ![Walls](images/walls.png)
 
+World generation is considerably slower when running this plugin. It is HIGHLY recommended to pre-generate your map using
+WorldBorder when you want to use this plugin.
+
 ## Install
 
 Place the JAR in the plugin folder. You will need to enable the plugin for world generation in `bukkit.yml` like so:
