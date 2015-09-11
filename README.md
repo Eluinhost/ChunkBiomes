@@ -94,3 +94,4 @@ How much space to leave between the inner wall lower and upper sections.
 - World spawn chunk is always generated without the plugin, this means you will need to regenerate it (//chunk and //regen with WorldEdit).
 - Sometimes more than just the initial chunk is generated wrong, this only seems to happen around the spawn chunk though and regneration works.
 - World structures like strongholds break through the walls, use WorldBorder to stop people going through the gaps
+- Random exception to do with BiomeJungle on console. It is unknown the cause of this, or if there is any sideeffects.
