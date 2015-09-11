@@ -1,14 +1,18 @@
+worlds:
+- world
 biomes:
-  M: MESA
   D: DESERT
-  T: TAIGA
   J: JUNGLE
-grid size: 4
+  T: TAIGA
+  O: OCEAN
+grid size: 3
 map:
-- MMMMM
-- MDDDM
-- MTTTM
-- MJJJM
-- MMMMM
-outer wall: BARRIER
-inner wall: BEDROCK
+- ODJDO
+- DDJTD
+- JJTDJ
+- DTDJD
+- ODJDO
+outer wall: minecraft:barrier
+inner wall lower: minecraft:bedrock
+inner wall higher: minecraft:glass
+inner wall gap: 15

@@ -1,44 +1,26 @@
 package gg.uhc.chunkbiomes;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
+import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import com.google.common.io.Resources;
 import gg.uhc.chunkbiomes.configuration.BiomeLayoutReader;
 import gg.uhc.chunkbiomes.configuration.BiomeMapReader;
 import gg.uhc.chunkbiomes.configuration.IntegerReader;
-import gg.uhc.chunkbiomes.configuration.MaterialReader;
-import gg.uhc.chunkbiomes.generator.*;
-import gg.uhc.chunkbiomes.selector.GridBiomeChunkSelector;
-import gg.uhc.chunkbiomes.transformer.ChunkDataTransformer;
-import gg.uhc.chunkbiomes.transformer.DrawGridTransformer;
-import gg.uhc.chunkbiomes.transformer.OuterWallTransformer;
-import org.bukkit.Material;
+import gg.uhc.chunkbiomes.settings.DefaultGenerationSettings;
+import gg.uhc.chunkbiomes.settings.GenerationSettings;
 import org.bukkit.block.Biome;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.event.Listener;
-import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
-public class Entry extends JavaPlugin implements Listener {
+public class Entry extends JavaPlugin {
 
-    protected GeneratorSettings settings;
-    protected Set<Biome> worldsRequired;
-
-    protected GridBiomeChunkSelector biomeSelector;
-    protected List<ChunkDataTransformer> transformers;
-    protected MissingBlockStatePopulator populator;
-
-    @Override
     public void onEnable() {
         // save the default if none exists already
         if(!copyDefaultConfig()) {
@@ -47,23 +29,16 @@ public class Entry extends JavaPlugin implements Listener {
             return;
         }
 
-        this.settings = new GeneratorSettings();
-
         FileConfiguration configuration = getConfig();
         configuration.options().copyDefaults(true);
         saveConfig();
 
         BiomeMapReader biomeMapReader = new BiomeMapReader();
-        MaterialReader materialReader = new MaterialReader();
         IntegerReader integerReader = new IntegerReader();
 
         try {
             // biome characters
             Map<Character, Biome> charMap = biomeMapReader.readFromConfigurationSection(configuration, "biomes");
-
-            // blocks
-            Material outerWall = materialReader.readFromConfigurationSection(configuration, "outer wall");
-            Material innerWall = materialReader.readFromConfigurationSection(configuration, "inner wall");
 
             // grid size
             int gridSize = integerReader.readFromConfigurationSection(configuration, "grid size");
@@ -72,44 +47,35 @@ public class Entry extends JavaPlugin implements Listener {
             // grid
             Biome[][] grid = new BiomeLayoutReader(charMap, gridSize).readFromConfigurationSection(configuration, "map");
 
-            // build a set of worlds to build
-            worldsRequired = Sets.newHashSet();
-            for (Biome[] biomes : grid) {
-                Collections.addAll(worldsRequired, biomes);
+            // blocks
+            String outer = configuration.getString("outer wall");
+            String innerLower = configuration.getString("inner wall lower");
+            String innerUpper = configuration.getString("inner wall higher");
+
+            // wall gap
+            int wallGap = integerReader.readFromConfigurationSection(configuration, "inner wall gap");
+            if (wallGap < 0) throw new InvalidConfigurationException("Wall gap must be >= 0");
+
+            // setup settings
+            GenerationSettings settings = new DefaultGenerationSettings(grid, gridSize, outer, innerLower, innerUpper, wallGap);
+
+            Map<String, GenerationSettings> worlds = Maps.newHashMap();
+            List<String> worldNames = configuration.getStringList("worlds");
+            for (String world : worldNames) {
+                worlds.put(world, settings);
             }
 
-            // setup selector
-            biomeSelector = new GridBiomeChunkSelector(grid, null);
+            WorldInitListener listener = new WorldInitListener(this, worlds);
+            getServer().getPluginManager().registerEvents(listener, this);
 
-            // setup transformers
-            transformers = Lists.newArrayList(
-                    // draw internal grid lines first so we can overwrite some with the outer walls
-                    new DrawGridTransformer(gridSize, innerWall),
-                    // then add barrier block override to entire outside of the grid
-                    new OuterWallTransformer(0, OuterWallTransformer.Axis.X, outerWall),
-                    new OuterWallTransformer(0, OuterWallTransformer.Axis.Z, outerWall),
-                    new OuterWallTransformer((grid.length << 4) - 1, OuterWallTransformer.Axis.X, outerWall),
-                    new OuterWallTransformer((grid.length << 4) - 1, OuterWallTransformer.Axis.Z, outerWall)
-            );
-
-            populator = new MissingBlockStatePopulator();
         } catch (InvalidConfigurationException e) {
             e.printStackTrace();
             setEnabled(false);
+        } catch (ReflectiveOperationException | UnsupportedOperationException e) {
+            e.printStackTrace();
+            getLogger().severe("Error trying to setup world generation, are you using a supported server version?");
+            setEnabled(false);
         }
-    }
-
-    @Override
-    public ChunkGenerator getDefaultWorldGenerator(String name, String id) {
-        return new CopyChunkGenerator(
-                this,
-                populator,
-                name,
-                biomeSelector,
-                worldsRequired,
-                settings,
-                transformers
-        );
     }
 
     /**

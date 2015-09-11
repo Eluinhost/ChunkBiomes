@@ -1,5 +1,8 @@
+worlds: []
 biomes:
 grid size: 4
-map:
-outer wall: BARRIER
-inner wall: BEDROCK
+map: []
+outer wall: minecraft:barrier
+inner wall lower: minecraft:bedrock
+inner wall higher: minecraft:glass
+inner wall gap: 15
