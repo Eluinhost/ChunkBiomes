@@ -1,6 +1,6 @@
 name: ChunkBiomes
 main: gg.uhc.chunkbiomes.Entry
-version: 1.0-SNAPSHOT
+version: 1.0.0
 author: ghowden/Eluinhost
 database: false
 depend: []
