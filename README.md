@@ -19,6 +19,9 @@ Example images using the sample configuration listed below:
 It is highly recommended to use WorldBorder when you want to use this plugin as stuctures can break the outer walls
 allowing people to escape the map through the holes.
 
+All empty 'outside' chunks are generated with a y=0 bedrock layer. All of the walls drawn also contain bedrock at y=0. 
+This is to combat a vanilla world generation bug caused by exposed void which can crash the server.
+
 ## Install
 
 Place the JAR in the plugin folder. 
