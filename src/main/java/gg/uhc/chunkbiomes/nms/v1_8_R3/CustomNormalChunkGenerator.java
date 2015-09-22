@@ -2,8 +2,7 @@ package gg.uhc.chunkbiomes.nms.v1_8_R3;
 
 import gg.uhc.chunkbiomes.settings.GenerationSettings;
 import gg.uhc.chunkbiomes.nms.v1_8_R3.transform.ChunkTransformer;
-import net.minecraft.server.v1_8_R3.Chunk;
-import net.minecraft.server.v1_8_R3.World;
+import net.minecraft.server.v1_8_R3.*;
 import org.bukkit.craftbukkit.v1_8_R3.generator.NormalChunkGenerator;
 
 import java.util.List;
@@ -27,14 +26,31 @@ public class CustomNormalChunkGenerator extends NormalChunkGenerator {
     }
 
     @Override
-    public Chunk getOrCreateChunk(int x, int z) {
+    public Chunk getOrCreateChunk(int chunkX, int chunkZ) {
         Chunk chunk;
 
         // if there was a biome for the given chunk, generate it otherwise give an empty chunk
-        if (generationSettings.getBiomeForCoordinate(x, z) != null) {
-            chunk = super.getOrCreateChunk(x, z);
+        if (generationSettings.getBiomeForCoordinate(chunkX, chunkZ) != null) {
+            chunk = super.getOrCreateChunk(chunkX, chunkZ);
         } else {
-            chunk = new Chunk(this.world, x, z);
+            chunk = new Chunk(this.world, chunkX, chunkZ);
+
+            // create y=0 as bedrock
+            ChunkSection[] sections = chunk.getSections();
+
+            if (sections[0] == null) {
+                sections[0] = new ChunkSection(0, true);
+            }
+
+            ChunkSection section = sections[0];
+            IBlockData bedrock = Blocks.BEDROCK.getBlockData();
+
+            int x, z;
+            for (x = 0; x < 16; x++) {
+                for (z = 0; z < 16; z++) {
+                    section.setType(x, 0, z, bedrock);
+                }
+            }
         }
 
         // apply each transformer as required

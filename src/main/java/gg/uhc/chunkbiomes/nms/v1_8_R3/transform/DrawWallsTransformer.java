@@ -84,6 +84,10 @@ public class DrawWallsTransformer implements ChunkTransformer {
                 sectionY = sectionId << 4;
 
                 for (y = 0; y < 16; y++) {
+                    if (sectionId == 0 && y == 0) {
+                        section.setType(x, y, z, Blocks.BEDROCK.getBlockData());
+                        continue;
+                    }
 
                     if (!isSolid) {
                         IBlockData data = section.getType(x, y, z);
